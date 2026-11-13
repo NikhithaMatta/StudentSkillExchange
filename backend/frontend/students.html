@@ -1,0 +1,144 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explore Students</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <nav class="navbar">
+        <h2>SkillExchange</h2>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="register.html">Register</a>
+            <a href="students.html">Students</a>
+        </div>
+    </nav>
+
+    <section class="students-section">
+
+        <h1>Explore Students</h1>
+        <p class="section-subtitle">
+            Find students who can teach the skills you want to learn.
+        </p>
+
+        <div id="studentsList" class="student-container">
+            Loading students...
+        </div>
+
+    </section>
+
+    <footer>
+        <p>© 2026 Student Skill Exchange Platform</p>
+    </footer>
+
+    <script>
+        const studentsList = document.getElementById("studentsList");
+
+        function escapeHTML(value) {
+            return String(value ?? "").replace(/[&<>"']/g, function(char) {
+                return {
+                    "&": "&amp;",
+                    "<": "&lt;",
+                    ">": "&gt;",
+                    '"': "&quot;",
+                    "'": "&#39;"
+                }[char];
+            });
+        }
+
+        async function loadStudents() {
+            try {
+                const response = await fetch("/api/students");
+
+                if (!response.ok) {
+                    throw new Error("Unable to load students");
+                }
+
+                const students = await response.json();
+
+                if (students.length === 0) {
+                    studentsList.textContent =
+                        "No students registered yet. Be the first to register!";
+                    return;
+                }
+
+                studentsList.innerHTML = students.map(student => `
+                    <div class="student-card">
+                        <div class="avatar">👨‍🎓</div>
+
+                        <h3>${escapeHTML(student.name)}</h3>
+
+                        <p><strong>Email:</strong> ${escapeHTML(student.email)}</p>
+
+                        <p><strong>Can Teach:</strong>
+                            ${escapeHTML(student.teach)}
+                        </p>
+
+                        <p><strong>Wants to Learn:</strong>
+                            ${escapeHTML(student.learn)}
+                        </p>
+
+                        <button class="btn"
+                            onclick="findMatches('${encodeURIComponent(student._id)}')">
+                            Find Skill Match
+                        </button>
+
+                        <div id="matches-${escapeHTML(student._id)}"
+                             class="match-results"></div>
+                    </div>
+                `).join("");
+
+            } catch (error) {
+                studentsList.textContent = error.message;
+            }
+        }
+
+        async function findMatches(encodedId) {
+            const studentId = decodeURIComponent(encodedId);
+            const resultBox =
+                document.getElementById("matches-" + studentId);
+
+            resultBox.textContent = "Searching for matches...";
+
+            try {
+                const response = await fetch(
+                    "/api/students/matches/" + encodeURIComponent(studentId)
+                );
+
+                const matches = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(matches.message || "Matching failed");
+                }
+
+                if (matches.length === 0) {
+                    resultBox.textContent = "No matching students found.";
+                    return;
+                }
+
+                resultBox.innerHTML = `
+                    <h4>Matching Students</h4>
+
+                    ${matches.map(student => `
+                        <div class="match-card">
+                            <strong>${escapeHTML(student.name)}</strong>
+                            <p>Email: ${escapeHTML(student.email)}</p>
+                            <p>Teaches: ${escapeHTML(student.teach)}</p>
+                        </div>
+                    `).join("")}
+                `;
+
+            } catch (error) {
+                resultBox.textContent = error.message;
+            }
+        }
+
+        loadStudents();
+    </script>
+
+</body>
+</html>
